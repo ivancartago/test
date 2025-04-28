@@ -37,6 +37,12 @@ body {
     margin-bottom: 0.5rem;
 }
 
+.chart-subtitle {
+    font-size: 0.875rem;
+    color: #666;
+    margin-top: 0.5rem;
+}
+
 /* Controls */
 .control-panel {
     margin-bottom: 1rem;
@@ -121,12 +127,6 @@ body {
     background-color: white;
     padding: 0.5rem;
     border-radius: 0.25rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-/* Increase height for the all-months view */
-#monthly-view .chart-wrapper:nth-child(4) {
-    height: 400px;
 }
 
 .message {
@@ -138,18 +138,8 @@ body {
     margin-top: 1.5rem;
 }
 
-/* Year separator styling for the all-months chart */
-.year-separator {
-    stroke: rgba(255, 0, 0, 0.3);
-    stroke-width: 2;
-    stroke-dasharray: 4 2;
-}
-
-.year-label {
-    font-weight: bold;
-    font-size: 12px;
-    fill: #666;
-    text-anchor: middle;
+.mt-2 {
+    margin-top: 0.5rem;
 }
 
 /* Tables */
@@ -190,7 +180,6 @@ body {
     background-color: #fffbeb;
     border: 1px solid #fef3c7;
     border-radius: 0.25rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .notes-list {
@@ -209,7 +198,6 @@ body {
     background-color: #e6f2ff;
     border: 1px solid #cce0ff;
     border-radius: 0.25rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .forecast-list {
@@ -233,7 +221,6 @@ body {
     padding: 1rem;
     border: 1px solid #d1d5db;
     border-radius: 0.25rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .comparison-grid {
