@@ -7,8 +7,6 @@
     <link rel="stylesheet" href="styles.css">
     <!-- Include Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Include Chart.js Annotation plugin for year separators -->
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.1.0"></script>
 </head>
 <body>
     <div class="container">
@@ -30,6 +28,7 @@
                     <option value="yearly">By Year</option>
                     <option value="monthly">By Month</option>
                     <option value="platform">By Platform</option>
+                    <option value="monthly-comparison">Month Comparison</option>
                 </select>
             </div>
             
@@ -71,8 +70,6 @@
                     <h3 class="chart-title">Monthly Sales</h3>
                     <div id="monthly-message" class="message hidden">Please select a specific year to see monthly data.</div>
                     <div id="monthly-empty-message" class="message hidden">No monthly data available for the selected combination.</div>
-                    
-                    <!-- This is only shown for specific year view -->
                     <div class="chart-wrapper">
                         <canvas id="monthly-bar-chart"></canvas>
                     </div>
@@ -93,6 +90,18 @@
                     <div class="chart-wrapper mt-large">
                         <h3 class="chart-title">Total Sales by Platform</h3>
                         <canvas id="platform-total-chart"></canvas>
+                    </div>
+                </div>
+                
+                <!-- Monthly Comparison view charts -->
+                <div id="monthly-comparison-view" class="chart-container hidden">
+                    <h3 class="chart-title">Monthly Sales Comparison Across Years</h3>
+                    <div id="monthly-comparison-empty-message" class="message hidden">No data available for monthly comparison with the selected parameters.</div>
+                    <div class="chart-wrapper">
+                        <canvas id="monthly-comparison-chart"></canvas>
+                    </div>
+                    <div class="mt-2">
+                        <p class="chart-subtitle">This chart shows how sales in each month compare across different years. Solid lines represent physical products, dashed lines represent digital sales when applicable.</p>
                     </div>
                 </div>
             </div>
