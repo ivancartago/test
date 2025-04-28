@@ -867,13 +867,13 @@ function updatePieChart(pieChartData) {
 
 // Function to prepare monthly comparison data
 function prepareMonthlyComparisonData(salesData, platform, hasEbooks) {
+    // Create an object to hold data for each month
     const result = {};
     
     // Initialize for each month
     MONTHS.forEach(month => {
         result[month] = {
-            physical: {},  // year -> value
-            ebook: {},     // year -> value
+            totalByYear: {},  // year -> total value
             years: new Set()
         };
     });
@@ -889,23 +889,23 @@ function prepareMonthlyComparisonData(salesData, platform, hasEbooks) {
         if (platformData.Physical) {
             Object.entries(platformData.Physical).forEach(([year, yearData]) => {
                 Object.entries(yearData).forEach(([month, value]) => {
-                    if (!result[month].physical[year]) {
-                        result[month].physical[year] = 0;
+                    if (!result[month].totalByYear[year]) {
+                        result[month].totalByYear[year] = 0;
                     }
-                    result[month].physical[year] += value || 0;
+                    result[month].totalByYear[year] += value || 0;
                     result[month].years.add(year);
                 });
             });
         }
         
-        // Process ebook sales
+        // Process ebook sales - combine with physical for total
         if (hasEbooks && platformData.eBook) {
             Object.entries(platformData.eBook).forEach(([year, yearData]) => {
                 Object.entries(yearData).forEach(([month, value]) => {
-                    if (!result[month].ebook[year]) {
-                        result[month].ebook[year] = 0;
+                    if (!result[month].totalByYear[year]) {
+                        result[month].totalByYear[year] = 0;
                     }
-                    result[month].ebook[year] += value || 0;
+                    result[month].totalByYear[year] += value || 0;
                     result[month].years.add(year);
                 });
             });
@@ -934,15 +934,14 @@ function updateMonthlyComparisonChart(monthlyComparisonData, hasEbooks, productL
     // Prepare datasets for the chart
     const datasets = [];
     
-    // Create datasets for each year (physical)
+    // Create one dataset per year (combining all product types)
     years.forEach((year, index) => {
         const color = COLORS[index % COLORS.length];
         
-        // Physical sales dataset
         datasets.push({
-            label: `${year} - Physical`,
+            label: year,
             data: MONTHS.map(month => {
-                return monthlyComparisonData[month].physical[year] || null;
+                return monthlyComparisonData[month].totalByYear[year] || null;
             }),
             borderColor: color,
             backgroundColor: 'transparent',
@@ -950,22 +949,6 @@ function updateMonthlyComparisonChart(monthlyComparisonData, hasEbooks, productL
             tension: 0.1,
             spanGaps: true
         });
-        
-        // eBook sales dataset (if applicable)
-        if (hasEbooks) {
-            datasets.push({
-                label: `${year} - ${productLabel === "Magnet" ? "Digital" : "eBook"}`,
-                data: MONTHS.map(month => {
-                    return monthlyComparisonData[month].ebook[year] || null;
-                }),
-                borderColor: color,
-                backgroundColor: 'transparent',
-                borderWidth: 1.5,
-                borderDash: [5, 5],
-                tension: 0.1,
-                spanGaps: true
-            });
-        }
     });
     
     // Destroy existing chart
@@ -998,11 +981,12 @@ function updateMonthlyComparisonChart(monthlyComparisonData, hasEbooks, productL
             },
             plugins: {
                 legend: {
-                    position: 'right',
+                    position: 'top',
+                    align: 'center',
                     labels: {
                         boxWidth: 12,
                         font: {
-                            size: 10
+                            size: 11
                         }
                     }
                 },
