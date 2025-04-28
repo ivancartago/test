@@ -1,4 +1,80 @@
-// Global variables to track state
+// Helper function to prepare data for year comparison view
+function prepareYearComparisonData(salesData, platform, hasEbooks) {
+    // Get all years for this product
+    const years = Object.keys(salesData.platforms)
+        .flatMap(platform => 
+            Object.keys(salesData.platforms[platform])
+                .flatMap(type => 
+                    Object.keys(salesData.platforms[platform][type])
+                )
+        )
+        .filter((v, i, a) => a.indexOf(v) === i)
+        .sort();
+    
+    // Create a dataset for each year
+    const datasets = [];
+    const colors = ['#8884d8', '#82ca9d', '#ffc658', '#00C49F', '#ff7300', '#0088FE'];
+    
+    // Create datasets for total sales for each year
+    years.forEach((year, index) => {
+        const yearData = {
+            label: year,
+            data: Array(12).fill(null), // Initialize with null values (one for each month)
+            borderColor: colors[index % colors.length],
+            backgroundColor: colors[index % colors.length],
+            tension: 0.1,
+            fill: false,
+            spanGaps: true
+        };
+        
+        // For each month, check if there's data
+        MONTHS.forEach((month, monthIndex) => {
+            let totalSales = 0;
+            let hasData = false;
+            
+            // Loop through platforms
+            Object.keys(salesData.platforms).forEach(platformName => {
+                // Skip if a specific platform is selected and this isn't it
+                if (platform !== "All" && platformName !== platform) return;
+                
+                const platformData = salesData.platforms[platformName];
+                
+                // Add physical sales if available
+                if (platformData.Physical && 
+                    platformData.Physical[year] && 
+                    platformData.Physical[year][month] !== undefined) {
+                    const value = platformData.Physical[year][month] || 0;
+                    totalSales += value;
+                    if (value > 0) hasData = true;
+                }
+                
+                // Add eBook sales if available and product has eBooks
+                if (hasEbooks && platformData.eBook && 
+                    platformData.eBook[year] && 
+                    platformData.eBook[year][month] !== undefined) {
+                    const value = platformData.eBook[year][month] || 0;
+                    totalSales += value;
+                    if (value > 0) hasData = true;
+                }
+            });
+            
+            // Only set data if we found some for this month/year
+            if (hasData) {
+                yearData.data[monthIndex] = totalSales;
+            }
+        });
+        
+        // Only add the dataset if it has at least one non-null value
+        if (yearData.data.some(value => value !== null)) {
+            datasets.push(yearData);
+        }
+    });
+    
+    return {
+        labels: MONTHS,
+        datasets: datasets
+    };
+}// Global variables to track state
 let selectedProduct = "Cookbook";
 let selectedView = "yearly";
 let selectedYear = "All";
@@ -12,6 +88,7 @@ let monthlyLineChart = null;
 let platformBarChart = null;
 let platformTotalChart = null;
 let pieChart = null;
+let yearComparisonChart = null;
 
 // Initialize the dashboard when the DOM is fully loaded
 document.addEventListener("DOMContentLoaded", function() {
@@ -28,6 +105,9 @@ function initializeDashboard() {
     document.getElementById("view-select").addEventListener("change", handleViewChange);
     document.getElementById("year-select").addEventListener("change", handleYearChange);
     document.getElementById("platform-select").addEventListener("change", handlePlatformChange);
+    
+    // Update the view dropdown options
+    updateViewOptions();
     
     // Initialize the dashboard with default values
     updateDashboard();
@@ -65,12 +145,57 @@ function handleProductChange(e) {
 function handleViewChange(e) {
     selectedView = e.target.value;
     
-    // Enable/disable year select based on view
-    document.getElementById("year-select").disabled = (selectedView === "yearly");
-    document.getElementById("platform-select").disabled = (selectedView === "platform");
+    // Enable/disable year select and platform select based on view
+    if (selectedView === "yearly") {
+        document.getElementById("year-select").disabled = true;
+        document.getElementById("platform-select").disabled = false;
+    } else if (selectedView === "monthly") {
+        document.getElementById("year-select").disabled = false;
+        document.getElementById("platform-select").disabled = false;
+    } else if (selectedView === "platform") {
+        document.getElementById("year-select").disabled = false;
+        document.getElementById("platform-select").disabled = true;
+    } else if (selectedView === "yearComparison") {
+        document.getElementById("year-select").disabled = true;
+        document.getElementById("platform-select").disabled = false;
+    }
     
     // Update the dashboard
     updateDashboard();
+}
+
+// Update view options based on current product
+function updateViewOptions() {
+    const viewSelect = document.getElementById("view-select");
+    
+    // Save current selection
+    const currentValue = viewSelect.value;
+    
+    // Clear existing options
+    viewSelect.innerHTML = "";
+    
+    // Add options
+    const options = [
+        { value: "yearly", text: "By Year" },
+        { value: "monthly", text: "By Month" },
+        { value: "platform", text: "By Platform" },
+        { value: "yearComparison", text: "Monthly Sales Comparison" }
+    ];
+    
+    options.forEach(option => {
+        const optionElement = document.createElement("option");
+        optionElement.value = option.value;
+        optionElement.textContent = option.text;
+        viewSelect.appendChild(optionElement);
+    });
+    
+    // Restore selection if it exists in new options
+    if (options.some(option => option.value === currentValue)) {
+        viewSelect.value = currentValue;
+    } else {
+        selectedView = "yearly";
+        viewSelect.value = selectedView;
+    }
 }
 
 // Handle year change
@@ -214,10 +339,38 @@ function updateViewVisibility() {
     const monthlyView = document.getElementById("monthly-view");
     const platformView = document.getElementById("platform-view");
     
+    // Create year comparison view if it doesn't exist
+    let yearComparisonView = document.getElementById("year-comparison-view");
+    if (!yearComparisonView && selectedView === "yearComparison") {
+        yearComparisonView = document.createElement("div");
+        yearComparisonView.id = "year-comparison-view";
+        yearComparisonView.className = "chart-container";
+        
+        // Add a title
+        const title = document.createElement("h3");
+        title.className = "chart-title";
+        title.textContent = "Monthly Sales Comparison";
+        yearComparisonView.appendChild(title);
+        
+        // Add chart wrapper
+        const chartWrapper = document.createElement("div");
+        chartWrapper.className = "chart-wrapper";
+        
+        // Add canvas for the chart
+        const canvas = document.createElement("canvas");
+        canvas.id = "year-comparison-chart";
+        chartWrapper.appendChild(canvas);
+        yearComparisonView.appendChild(chartWrapper);
+        
+        // Insert the view after the monthly view
+        monthlyView.parentNode.insertBefore(yearComparisonView, monthlyView.nextSibling);
+    }
+    
     // Hide all views
     yearlyView.classList.add("hidden");
     monthlyView.classList.add("hidden");
     platformView.classList.add("hidden");
+    if (yearComparisonView) yearComparisonView.classList.add("hidden");
     
     // Show selected view
     if (selectedView === "yearly") {
@@ -266,6 +419,8 @@ function updateViewVisibility() {
         }
     } else if (selectedView === "platform") {
         platformView.classList.remove("hidden");
+    } else if (selectedView === "yearComparison" && yearComparisonView) {
+        yearComparisonView.classList.remove("hidden");
     }
     
     // Update chart titles
@@ -303,6 +458,12 @@ function updateChartTitles() {
             title.textContent = `Total Sales by Platform ${selectedYear !== 'All' ? `(${selectedYear})` : ''}`;
         }
     });
+    
+    // Year comparison chart
+    const yearComparisonTitle = document.querySelector("#year-comparison-view .chart-title");
+    if (yearComparisonTitle) {
+        yearComparisonTitle.textContent = `Monthly Sales Comparison ${selectedPlatform !== 'All' ? `(${selectedPlatform})` : ''}`;
+    }
     
     // Pie chart
     const pieChartTitle = document.querySelector(".chart-column:nth-child(2) .chart-title");
