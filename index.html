@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="styles.css">
     <!-- Include Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Include Chart.js Annotation plugin for year separators -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.1.0"></script>
 </head>
 <body>
     <div class="container">
@@ -69,6 +71,8 @@
                     <h3 class="chart-title">Monthly Sales</h3>
                     <div id="monthly-message" class="message hidden">Please select a specific year to see monthly data.</div>
                     <div id="monthly-empty-message" class="message hidden">No monthly data available for the selected combination.</div>
+                    
+                    <!-- This is only shown for specific year view -->
                     <div class="chart-wrapper">
                         <canvas id="monthly-bar-chart"></canvas>
                     </div>
@@ -76,12 +80,6 @@
                     <div class="chart-wrapper mt-large">
                         <h3 class="chart-title">Monthly Sales Trend</h3>
                         <canvas id="monthly-line-chart"></canvas>
-                    </div>
-                    
-                    <!-- Timeline view chart (new) -->
-                    <div id="timeline-chart-container" class="chart-wrapper mt-large">
-                        <h3 class="chart-title">Sales Timeline (2021-2025)</h3>
-                        <canvas id="timeline-chart"></canvas>
                     </div>
                 </div>
                 
