@@ -1,138 +1,4 @@
-// Function to update year comparison chart
-function updateYearComparisonChart(salesData, hasEbooks, productLabel) {
-    const canvas = document.getElementById("year-comparison-chart");
-    if (!canvas) return;
-    
-    const ctx = canvas.getContext('2d');
-    
-    // Get data for the chart
-    const chartData = prepareYearComparisonData(salesData, selectedPlatform, hasEbooks);
-    
-    // Destroy existing chart
-    if (yearComparisonChart) yearComparisonChart.destroy();
-    
-    // Create new chart
-    yearComparisonChart = new Chart(ctx, {
-        type: 'line',
-        data: chartData,
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Total Sales'
-                    }
-                },
-                x: {
-                    ticks: {
-                        autoSkip: false,
-                        maxRotation: 45,
-                        minRotation: 45
-                    },
-                    title: {
-                        display: true,
-                        text: 'Month'
-                    }
-                }
-            },
-            plugins: {
-                legend: {
-                    position: 'top',
-                    labels: {
-                        usePointStyle: true,
-                        boxWidth: 6
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        title: function(context) {
-                            return `${context[0].label} ${context[0].dataset.label}`;
-                        }
-                    }
-                }
-            }
-        }
-    });
-}// Helper function to prepare data for year comparison view
-function prepareYearComparisonData(salesData, platform, hasEbooks) {
-    // Get all years for this product
-    const years = Object.keys(salesData.platforms)
-        .flatMap(platform => 
-            Object.keys(salesData.platforms[platform])
-                .flatMap(type => 
-                    Object.keys(salesData.platforms[platform][type])
-                )
-        )
-        .filter((v, i, a) => a.indexOf(v) === i)
-        .sort();
-    
-    // Create a dataset for each year
-    const datasets = [];
-    const colors = ['#8884d8', '#82ca9d', '#ffc658', '#00C49F', '#ff7300', '#0088FE'];
-    
-    // Create datasets for total sales for each year
-    years.forEach((year, index) => {
-        const yearData = {
-            label: year,
-            data: Array(12).fill(null), // Initialize with null values (one for each month)
-            borderColor: colors[index % colors.length],
-            backgroundColor: colors[index % colors.length],
-            tension: 0.1,
-            fill: false,
-            spanGaps: true
-        };
-        
-        // For each month, check if there's data
-        MONTHS.forEach((month, monthIndex) => {
-            let totalSales = 0;
-            let hasData = false;
-            
-            // Loop through platforms
-            Object.keys(salesData.platforms).forEach(platformName => {
-                // Skip if a specific platform is selected and this isn't it
-                if (platform !== "All" && platformName !== platform) return;
-                
-                const platformData = salesData.platforms[platformName];
-                
-                // Add physical sales if available
-                if (platformData.Physical && 
-                    platformData.Physical[year] && 
-                    platformData.Physical[year][month] !== undefined) {
-                    const value = platformData.Physical[year][month] || 0;
-                    totalSales += value;
-                    if (value > 0) hasData = true;
-                }
-                
-                // Add eBook sales if available and product has eBooks
-                if (hasEbooks && platformData.eBook && 
-                    platformData.eBook[year] && 
-                    platformData.eBook[year][month] !== undefined) {
-                    const value = platformData.eBook[year][month] || 0;
-                    totalSales += value;
-                    if (value > 0) hasData = true;
-                }
-            });
-            
-            // Only set data if we found some for this month/year
-            if (hasData) {
-                yearData.data[monthIndex] = totalSales;
-            }
-        });
-        
-        // Only add the dataset if it has at least one non-null value
-        if (yearData.data.some(value => value !== null)) {
-            datasets.push(yearData);
-        }
-    });
-    
-    return {
-        labels: MONTHS,
-        datasets: datasets
-    };
-}// Global variables to track state
+// Global variables to track state
 let selectedProduct = "Cookbook";
 let selectedView = "yearly";
 let selectedYear = "All";
@@ -146,7 +12,7 @@ let monthlyLineChart = null;
 let platformBarChart = null;
 let platformTotalChart = null;
 let pieChart = null;
-let yearComparisonChart = null;
+let monthlyComparisonChart = null;
 
 // Initialize the dashboard when the DOM is fully loaded
 document.addEventListener("DOMContentLoaded", function() {
@@ -158,57 +24,14 @@ function initializeDashboard() {
     // Populate product select dropdown
     populateProductSelect();
     
-    // Create the year comparison view if it doesn't exist
-    createYearComparisonView();
-    
     // Set up event listeners
     document.getElementById("product-select").addEventListener("change", handleProductChange);
     document.getElementById("view-select").addEventListener("change", handleViewChange);
     document.getElementById("year-select").addEventListener("change", handleYearChange);
     document.getElementById("platform-select").addEventListener("change", handlePlatformChange);
     
-    // Update the view dropdown options
-    updateViewOptions();
-    
     // Initialize the dashboard with default values
     updateDashboard();
-}
-
-// Create year comparison view
-function createYearComparisonView() {
-    const chartColumn = document.querySelector(".chart-column");
-    if (!chartColumn) return;
-    
-    let yearComparisonView = document.getElementById("year-comparison-view");
-    if (!yearComparisonView) {
-        yearComparisonView = document.createElement("div");
-        yearComparisonView.id = "year-comparison-view";
-        yearComparisonView.className = "chart-container hidden";
-        
-        // Add a title
-        const title = document.createElement("h3");
-        title.className = "chart-title";
-        title.textContent = "Monthly Sales Comparison";
-        yearComparisonView.appendChild(title);
-        
-        // Add chart wrapper
-        const chartWrapper = document.createElement("div");
-        chartWrapper.className = "chart-wrapper";
-        
-        // Add canvas for the chart
-        const canvas = document.createElement("canvas");
-        canvas.id = "year-comparison-chart";
-        chartWrapper.appendChild(canvas);
-        yearComparisonView.appendChild(chartWrapper);
-        
-        // Insert the view after the monthly view
-        const monthlyView = document.getElementById("monthly-view");
-        if (monthlyView) {
-            monthlyView.parentNode.insertBefore(yearComparisonView, monthlyView.nextSibling);
-        } else {
-            chartColumn.appendChild(yearComparisonView);
-        }
-    }
 }
 
 // Populate product select dropdown
@@ -235,9 +58,6 @@ function handleProductChange(e) {
     // Update select elements to reflect default values
     document.getElementById("view-select").value = selectedView;
     
-    // Update view options
-    updateViewOptions();
-    
     // Update the dashboard
     updateDashboard();
 }
@@ -246,57 +66,12 @@ function handleProductChange(e) {
 function handleViewChange(e) {
     selectedView = e.target.value;
     
-    // Enable/disable year select and platform select based on view
-    if (selectedView === "yearly") {
-        document.getElementById("year-select").disabled = true;
-        document.getElementById("platform-select").disabled = false;
-    } else if (selectedView === "monthly") {
-        document.getElementById("year-select").disabled = false;
-        document.getElementById("platform-select").disabled = false;
-    } else if (selectedView === "platform") {
-        document.getElementById("year-select").disabled = false;
-        document.getElementById("platform-select").disabled = true;
-    } else if (selectedView === "yearComparison") {
-        document.getElementById("year-select").disabled = true;
-        document.getElementById("platform-select").disabled = false;
-    }
+    // Enable/disable year select based on view
+    document.getElementById("year-select").disabled = (selectedView === "yearly");
+    document.getElementById("platform-select").disabled = (selectedView === "platform");
     
     // Update the dashboard
     updateDashboard();
-}
-
-// Update view options based on current product
-function updateViewOptions() {
-    const viewSelect = document.getElementById("view-select");
-    
-    // Save current selection
-    const currentValue = viewSelect.value;
-    
-    // Clear existing options
-    viewSelect.innerHTML = "";
-    
-    // Add options
-    const options = [
-        { value: "yearly", text: "By Year" },
-        { value: "monthly", text: "By Month" },
-        { value: "platform", text: "By Platform" },
-        { value: "yearComparison", text: "Monthly Sales Comparison" }
-    ];
-    
-    options.forEach(option => {
-        const optionElement = document.createElement("option");
-        optionElement.value = option.value;
-        optionElement.textContent = option.text;
-        viewSelect.appendChild(optionElement);
-    });
-    
-    // Restore selection if it exists in new options
-    if (options.some(option => option.value === currentValue)) {
-        viewSelect.value = currentValue;
-    } else {
-        selectedView = "yearly";
-        viewSelect.value = selectedView;
-    }
 }
 
 // Handle year change
@@ -339,6 +114,9 @@ function updateDashboard() {
         monthlyData = getMonthlyData(currentProductData, selectedYear, selectedPlatform, hasEbooks);
     }
     
+    // Get monthly comparison data
+    const monthlyComparisonData = prepareMonthlyComparisonData(currentProductData, selectedPlatform, hasEbooks);
+    
     const forecast2025 = calculate2025Forecast(currentProductData, selectedPlatform, hasEbooks, growthFactor);
     const pieChartData = preparePieChartData(currentProductData, selectedYear, hasEbooks);
     
@@ -348,19 +126,12 @@ function updateDashboard() {
         summaryData.push(forecast2025);
     }
     
-    // Update charts based on selected view
-    if (selectedView === "yearly") {
-        updateYearlyCharts(yearlyData, hasEbooks, productLabel);
-    } else if (selectedView === "monthly") {
-        updateMonthlyCharts(monthlyData, hasEbooks, productLabel);
-    } else if (selectedView === "platform") {
-        updatePlatformCharts(platformData, hasEbooks, productLabel);
-    } else if (selectedView === "yearComparison") {
-        updateYearComparisonChart(currentProductData, hasEbooks, productLabel);
-    }
-    
-    // Always update pie chart
+    // Update charts
+    updateYearlyCharts(yearlyData, hasEbooks, productLabel);
+    updateMonthlyCharts(monthlyData, hasEbooks, productLabel);
+    updatePlatformCharts(platformData, hasEbooks, productLabel);
     updatePieChart(pieChartData);
+    updateMonthlyComparisonChart(monthlyComparisonData, hasEbooks, productLabel);
     
     // Update table
     updateSummaryTable(summaryData, hasEbooks, productLabel);
@@ -447,13 +218,13 @@ function updateViewVisibility() {
     const yearlyView = document.getElementById("yearly-view");
     const monthlyView = document.getElementById("monthly-view");
     const platformView = document.getElementById("platform-view");
-    const yearComparisonView = document.getElementById("year-comparison-view");
+    const monthlyComparisonView = document.getElementById("monthly-comparison-view");
     
     // Hide all views
     yearlyView.classList.add("hidden");
     monthlyView.classList.add("hidden");
     platformView.classList.add("hidden");
-    if (yearComparisonView) yearComparisonView.classList.add("hidden");
+    monthlyComparisonView.classList.add("hidden");
     
     // Show selected view
     if (selectedView === "yearly") {
@@ -502,8 +273,8 @@ function updateViewVisibility() {
         }
     } else if (selectedView === "platform") {
         platformView.classList.remove("hidden");
-    } else if (selectedView === "yearComparison" && yearComparisonView) {
-        yearComparisonView.classList.remove("hidden");
+    } else if (selectedView === "monthly-comparison") {
+        monthlyComparisonView.classList.remove("hidden");
     }
     
     // Update chart titles
@@ -542,15 +313,15 @@ function updateChartTitles() {
         }
     });
     
-    // Year comparison chart
-    const yearComparisonTitle = document.querySelector("#year-comparison-view .chart-title");
-    if (yearComparisonTitle) {
-        yearComparisonTitle.textContent = `Monthly Sales Comparison ${selectedPlatform !== 'All' ? `(${selectedPlatform})` : ''}`;
-    }
-    
     // Pie chart
     const pieChartTitle = document.querySelector(".chart-column:nth-child(2) .chart-title");
     pieChartTitle.textContent = `Platform Sales Distribution ${selectedYear !== 'All' ? `(${selectedYear})` : ''}`;
+    
+    // Monthly comparison chart
+    const comparisonChartTitle = document.querySelector("#monthly-comparison-view .chart-title");
+    if (comparisonChartTitle) {
+        comparisonChartTitle.textContent = `Monthly Sales Comparison Across Years ${selectedPlatform !== 'All' ? `(${selectedPlatform})` : ''}`;
+    }
 }
 
 // Update yearly charts
@@ -1086,6 +857,163 @@ function updatePieChart(pieChartData) {
                             const value = context.raw || 0;
                             const percentage = ((value / total) * 100).toFixed(1);
                             return `${label.split(':')[0]}: ${value.toLocaleString()} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Function to prepare monthly comparison data
+function prepareMonthlyComparisonData(salesData, platform, hasEbooks) {
+    const result = {};
+    
+    // Initialize for each month
+    MONTHS.forEach(month => {
+        result[month] = {
+            physical: {},  // year -> value
+            ebook: {},     // year -> value
+            years: new Set()
+        };
+    });
+    
+    // Process each platform
+    Object.keys(salesData.platforms).forEach(platformName => {
+        // Skip if a specific platform is selected and this isn't it
+        if (platform !== "All" && platformName !== platform) return;
+        
+        const platformData = salesData.platforms[platformName];
+        
+        // Process physical sales
+        if (platformData.Physical) {
+            Object.entries(platformData.Physical).forEach(([year, yearData]) => {
+                Object.entries(yearData).forEach(([month, value]) => {
+                    if (!result[month].physical[year]) {
+                        result[month].physical[year] = 0;
+                    }
+                    result[month].physical[year] += value || 0;
+                    result[month].years.add(year);
+                });
+            });
+        }
+        
+        // Process ebook sales
+        if (hasEbooks && platformData.eBook) {
+            Object.entries(platformData.eBook).forEach(([year, yearData]) => {
+                Object.entries(yearData).forEach(([month, value]) => {
+                    if (!result[month].ebook[year]) {
+                        result[month].ebook[year] = 0;
+                    }
+                    result[month].ebook[year] += value || 0;
+                    result[month].years.add(year);
+                });
+            });
+        }
+    });
+    
+    return result;
+}
+
+// Update monthly comparison chart
+function updateMonthlyComparisonChart(monthlyComparisonData, hasEbooks, productLabel) {
+    const comparisonCtx = document.getElementById("monthly-comparison-chart").getContext('2d');
+    
+    // Check if the chart exists
+    if (!comparisonCtx) return;
+    
+    // Collect all years across all months
+    const allYears = new Set();
+    Object.values(monthlyComparisonData).forEach(monthData => {
+        monthData.years.forEach(year => allYears.add(year));
+    });
+    
+    // Convert to array and sort
+    const years = Array.from(allYears).sort();
+    
+    // Prepare datasets for the chart
+    const datasets = [];
+    
+    // Create datasets for each year (physical)
+    years.forEach((year, index) => {
+        const color = COLORS[index % COLORS.length];
+        
+        // Physical sales dataset
+        datasets.push({
+            label: `${year} - Physical`,
+            data: MONTHS.map(month => {
+                return monthlyComparisonData[month].physical[year] || null;
+            }),
+            borderColor: color,
+            backgroundColor: 'transparent',
+            borderWidth: 2,
+            tension: 0.1,
+            spanGaps: true
+        });
+        
+        // eBook sales dataset (if applicable)
+        if (hasEbooks) {
+            datasets.push({
+                label: `${year} - ${productLabel === "Magnet" ? "Digital" : "eBook"}`,
+                data: MONTHS.map(month => {
+                    return monthlyComparisonData[month].ebook[year] || null;
+                }),
+                borderColor: color,
+                backgroundColor: 'transparent',
+                borderWidth: 1.5,
+                borderDash: [5, 5],
+                tension: 0.1,
+                spanGaps: true
+            });
+        }
+    });
+    
+    // Destroy existing chart
+    if (monthlyComparisonChart) monthlyComparisonChart.destroy();
+    
+    // Create new chart
+    monthlyComparisonChart = new Chart(comparisonCtx, {
+        type: 'line',
+        data: {
+            labels: MONTHS,
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Sales'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Month'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        boxWidth: 12,
+                        font: {
+                            size: 10
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        title: function(context) {
+                            return `${context[0].label}`;
+                        },
+                        label: function(context) {
+                            const value = context.raw !== null ? context.raw : 'No data';
+                            return `${context.dataset.label}: ${value}`;
                         }
                     }
                 }
