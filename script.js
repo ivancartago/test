@@ -1,6 +1,6 @@
 // Global variables to track state
 let selectedProduct = "Cookbook";
-let selectedView = "yearly";
+let selectedView = "monthly";  // Changed default to monthly
 let selectedYear = "All";
 let selectedPlatform = "All";
 
@@ -50,13 +50,13 @@ function populateProductSelect() {
 function handleProductChange(e) {
     selectedProduct = e.target.value;
     
-    // Reset to default values
-    selectedView = "yearly";
+    // Keep the current view but reset year and platform
     selectedYear = "All";
     selectedPlatform = "All";
     
-    // Update select elements to reflect default values
-    document.getElementById("view-select").value = selectedView;
+    // Update select elements to reflect values
+    document.getElementById("year-select").value = selectedYear;
+    document.getElementById("platform-select").value = selectedPlatform;
     
     // Update the dashboard
     updateDashboard();
@@ -99,16 +99,20 @@ function updateDashboard() {
     // Update the UI based on hasEbooks
     updateEbookDisplay(hasEbooks, productLabel);
     
-    // Show/hide views based on selection
-    updateViewVisibility();
-    
-    // Update data
+    // Calculate data sets
     const yearlyData = calculateYearlyTotals(currentProductData, selectedPlatform, hasEbooks);
     const platformData = calculatePlatformTotals(currentProductData, selectedYear, hasEbooks);
     const monthlyData = getMonthlyData(currentProductData, selectedYear, selectedPlatform, hasEbooks);
     const allMonthsData = getAllMonthsData(currentProductData, selectedPlatform, hasEbooks);
     const forecast2025 = calculate2025Forecast(currentProductData, selectedPlatform, hasEbooks, growthFactor);
     const pieChartData = preparePieChartData(currentProductData, selectedYear, hasEbooks);
+    
+    // Set chart data availability flags
+    document.getElementById("monthly-bar-chart").setAttribute("data-has-data", monthlyData.length > 0 ? "true" : "false");
+    document.getElementById("monthly-line-chart").setAttribute("data-has-all-months-data", allMonthsData.length > 0 ? "true" : "false");
+    
+    // Show/hide views based on selection
+    updateViewVisibility(allMonthsData);
     
     // Create summary data including forecast
     const summaryData = [...yearlyData];
@@ -203,7 +207,7 @@ function updateEbookDisplay(hasEbooks, productLabel) {
 }
 
 // Update view visibility
-function updateViewVisibility() {
+function updateViewVisibility(allMonthsData) {
     const yearlyView = document.getElementById("yearly-view");
     const monthlyView = document.getElementById("monthly-view");
     const platformView = document.getElementById("platform-view");
@@ -219,37 +223,39 @@ function updateViewVisibility() {
     } else if (selectedView === "monthly") {
         monthlyView.classList.remove("hidden");
         
-        // Show appropriate message or chart
+        // Show appropriate message
         const monthlyMessage = document.getElementById("monthly-message");
         const monthlyEmptyMessage = document.getElementById("monthly-empty-message");
         const monthlyCharts = document.querySelectorAll("#monthly-view .chart-wrapper");
         
-        // For All years, handle differently now
+        // For All years, check if we have all-months data
         if (selectedYear === "All") {
             monthlyMessage.classList.add("hidden");
             
-            // Check if we have all-months data
-            const hasAllMonthsData = document.getElementById("monthly-line-chart").getContext('2d').canvas.hasAttribute("data-has-all-months-data") && 
-                document.getElementById("monthly-line-chart").getContext('2d').canvas.getAttribute("data-has-all-months-data") === "true";
-            
-            if (hasAllMonthsData) {
+            if (allMonthsData && allMonthsData.length > 0) {
+                // We have all-months data
                 monthlyEmptyMessage.classList.add("hidden");
                 monthlyCharts.forEach(chart => chart.classList.remove("hidden"));
+                
+                // Hide the bar chart for all years view and show only line chart
+                document.querySelector("#monthly-view .chart-wrapper:nth-child(3)").classList.add("hidden");
             } else {
+                // No all-months data
                 monthlyEmptyMessage.classList.remove("hidden");
                 monthlyCharts.forEach(chart => chart.classList.add("hidden"));
             }
         } else {
-            // Original logic for specific year
+            // Specific year selected
             monthlyMessage.classList.add("hidden");
             
-            // Check if there's data
-            const hasData = document.getElementById("monthly-bar-chart").getContext('2d').canvas.hasAttribute("data-has-data") && 
-                document.getElementById("monthly-bar-chart").getContext('2d').canvas.getAttribute("data-has-data") === "true";
+            // Check if there's data for the specific year
+            const hasData = document.getElementById("monthly-bar-chart").getAttribute("data-has-data") === "true";
             
             if (hasData) {
                 monthlyEmptyMessage.classList.add("hidden");
                 monthlyCharts.forEach(chart => chart.classList.remove("hidden"));
+                // Show both charts for specific year
+                document.querySelector("#monthly-view .chart-wrapper:nth-child(3)").classList.remove("hidden");
             } else {
                 monthlyEmptyMessage.classList.remove("hidden");
                 monthlyCharts.forEach(chart => chart.classList.add("hidden"));
@@ -401,10 +407,6 @@ function updateMonthlyCharts(monthlyData, allMonthsData, hasEbooks, productLabel
     const barCtx = document.getElementById("monthly-bar-chart").getContext('2d');
     const lineCtx = document.getElementById("monthly-line-chart").getContext('2d');
     
-    // Set data-has-data attribute
-    barCtx.canvas.setAttribute("data-has-data", monthlyData.length > 0 ? "true" : "false");
-    lineCtx.canvas.setAttribute("data-has-all-months-data", allMonthsData.length > 0 ? "true" : "false");
-    
     // Handle specific year view
     if (selectedYear !== "All") {
         // Don't update if no data
@@ -505,7 +507,7 @@ function updateMonthlyCharts(monthlyData, allMonthsData, hasEbooks, productLabel
     // Handle All years view - use the continuous timeline
     else {
         // Don't update if no data
-        if (allMonthsData.length === 0) {
+        if (!allMonthsData || allMonthsData.length === 0) {
             if (monthlyBarChart) monthlyBarChart.destroy();
             if (monthlyLineChart) monthlyLineChart.destroy();
             monthlyBarChart = null;
@@ -513,9 +515,17 @@ function updateMonthlyCharts(monthlyData, allMonthsData, hasEbooks, productLabel
             return;
         }
         
+        console.log("All months data:", allMonthsData.length, "data points");
+        
+        // Reset any previous bar chart
+        if (monthlyBarChart) {
+            monthlyBarChart.destroy();
+            monthlyBarChart = null;
+        }
+        
         // Prepare data for line chart
         const lineData = {
-            labels: allMonthsData.map(item => item.label),
+            labels: allMonthsData.map(item => `${item.month}'${item.year.slice(2)}`), // Format as "Jan'21"
             datasets: [
                 {
                     label: "Total Sales",
@@ -551,11 +561,6 @@ function updateMonthlyCharts(monthlyData, allMonthsData, hasEbooks, productLabel
             });
         }
         
-        // Hide the bar chart for all years view
-        if (monthlyBarChart) monthlyBarChart.destroy();
-        monthlyBarChart = null;
-        document.getElementById("monthly-bar-chart").style.display = "none";
-        
         // Extract unique years for creating year separation
         const years = [...new Set(allMonthsData.map(item => item.year))].sort();
         
@@ -570,7 +575,7 @@ function updateMonthlyCharts(monthlyData, allMonthsData, hasEbooks, productLabel
         // Destroy existing chart
         if (monthlyLineChart) monthlyLineChart.destroy();
         
-        // Create new chart
+        // Create new chart with annotations
         monthlyLineChart = new Chart(lineCtx, {
             type: 'line',
             data: lineData,
@@ -580,30 +585,34 @@ function updateMonthlyCharts(monthlyData, allMonthsData, hasEbooks, productLabel
                 scales: {
                     x: {
                         ticks: {
+                            autoSkip: true,
+                            maxRotation: 45,
+                            minRotation: 45,
                             callback: function(val, index) {
                                 // Show only first month of each quarter and year transitions
-                                const month = allMonthsData[index].month;
-                                const isFirstMonthOfYear = allMonthsData[index].month === 'Jan';
+                                const dataPoint = allMonthsData[index];
+                                if (!dataPoint) return '';
+                                
+                                const month = dataPoint.month;
+                                const isFirstMonthOfYear = month === 'Jan';
                                 const isFirstMonthOfQuarter = ['Jan', 'April', 'July', 'Oct'].includes(month);
                                 
                                 if (isFirstMonthOfYear) {
-                                    return `${month} ${allMonthsData[index].year}`;
+                                    return `${month}'${dataPoint.year.slice(2)}`;
                                 } else if (isFirstMonthOfQuarter) {
                                     return month;
                                 }
                                 return '';
-                            },
-                            maxRotation: 45,
-                            minRotation: 45
+                            }
                         },
                         grid: {
                             color: function(context) {
                                 // Highlight year transitions with a different color
-                                const index = context.tick.value;
+                                const index = context.index;
                                 return yearTransitions.includes(index) ? 'rgba(255, 0, 0, 0.3)' : 'rgba(0, 0, 0, 0.1)';
                             },
                             lineWidth: function(context) {
-                                const index = context.tick.value;
+                                const index = context.index;
                                 return yearTransitions.includes(index) ? 2 : 1;
                             }
                         }
@@ -638,35 +647,6 @@ function updateMonthlyCharts(monthlyData, allMonthsData, hasEbooks, productLabel
                 }
             }
         });
-        
-        // Add year labels as annotations
-        const annotations = {};
-        
-        years.forEach((year, index) => {
-            // Find the first month of this year
-            const yearStartIndex = allMonthsData.findIndex(item => item.year === year);
-            
-            if (yearStartIndex !== -1) {
-                annotations[`year-${year}`] = {
-                    type: 'line',
-                    xMin: yearStartIndex - 0.5,
-                    xMax: yearStartIndex - 0.5,
-                    borderColor: 'rgba(255, 0, 0, 0.5)',
-                    borderWidth: 2,
-                    label: {
-                        content: year,
-                        enabled: true,
-                        position: 'top'
-                    }
-                };
-            }
-        });
-        
-        monthlyLineChart.options.plugins.annotation = {
-            annotations: annotations
-        };
-        
-        monthlyLineChart.update();
     }
 }
 
@@ -674,52 +654,64 @@ function updateMonthlyCharts(monthlyData, allMonthsData, hasEbooks, productLabel
 function getAllMonthsData(salesData, platform, hasEbooks) {
     const result = [];
     
-    // Get all years
-    const years = Object.keys(salesData.config.years).filter(y => y !== "All");
-    
-    // Loop through all years and months
-    years.forEach(year => {
-        // Skip the "All" year
-        if (year === "All") return;
+    // Loop through all platforms
+    Object.keys(salesData.platforms).forEach(platformName => {
+        // Skip if a specific platform is selected and this isn't it
+        if (platform !== "All" && platformName !== platform) return;
         
-        MONTHS.forEach(month => {
-            let totalPhysical = 0;
-            let totalEBook = 0;
-            
-            // Loop through platforms
-            Object.keys(salesData.platforms).forEach(platformName => {
-                // Skip if a specific platform is selected and this isn't it
-                if (platform !== "All" && platformName !== platform) return;
-                
-                const platformData = salesData.platforms[platformName];
-                
-                // Add physical sales if available
-                if (platformData.Physical && 
-                    platformData.Physical[year] && 
-                    platformData.Physical[year][month] !== undefined) {
-                    totalPhysical += platformData.Physical[year][month] || 0;
-                }
-                
-                // Add eBook sales if available and product has eBooks
-                if (hasEbooks && platformData.eBook && 
-                    platformData.eBook[year] && 
-                    platformData.eBook[year][month] !== undefined) {
-                    totalEBook += platformData.eBook[year][month] || 0;
-                }
-            });
-            
-            // Only add months that have data
-            if (totalPhysical > 0 || totalEBook > 0) {
-                result.push({
-                    year,
-                    month,
-                    label: `${month} ${year}`,
-                    Physical: totalPhysical,
-                    eBook: totalEBook,
-                    Total: totalPhysical + totalEBook
+        const platformData = salesData.platforms[platformName];
+        
+        // Process Physical sales
+        if (platformData.Physical) {
+            Object.keys(platformData.Physical).forEach(year => {
+                Object.entries(platformData.Physical[year]).forEach(([month, value]) => {
+                    // Find if this month/year combination already exists in the result
+                    const existingIndex = result.findIndex(item => 
+                        item.year === year && item.month === month);
+                    
+                    if (existingIndex === -1) {
+                        // Add new entry
+                        result.push({
+                            year,
+                            month,
+                            Physical: value || 0,
+                            eBook: 0,
+                            Total: value || 0
+                        });
+                    } else {
+                        // Update existing entry
+                        result[existingIndex].Physical += value || 0;
+                        result[existingIndex].Total += value || 0;
+                    }
                 });
-            }
-        });
+            });
+        }
+        
+        // Process eBook sales if applicable
+        if (hasEbooks && platformData.eBook) {
+            Object.keys(platformData.eBook).forEach(year => {
+                Object.entries(platformData.eBook[year]).forEach(([month, value]) => {
+                    // Find if this month/year combination already exists in the result
+                    const existingIndex = result.findIndex(item => 
+                        item.year === year && item.month === month);
+                    
+                    if (existingIndex === -1) {
+                        // Add new entry
+                        result.push({
+                            year,
+                            month,
+                            Physical: 0,
+                            eBook: value || 0,
+                            Total: value || 0
+                        });
+                    } else {
+                        // Update existing entry
+                        result[existingIndex].eBook += value || 0;
+                        result[existingIndex].Total += value || 0;
+                    }
+                });
+            });
+        }
     });
     
     // Sort by year and month chronologically
@@ -730,6 +722,7 @@ function getAllMonthsData(salesData, platform, hasEbooks) {
         return MONTHS.indexOf(a.month) - MONTHS.indexOf(b.month);
     });
     
+    console.log(`Generated ${result.length} data points for all months chart`);
     return result;
 }
 
@@ -925,8 +918,8 @@ function updateNotes(currentProductData) {
     const notesList = document.getElementById("notes-list");
     
     // Get month value for monthly view
-    const monthValue = selectedView === 'monthly' ? 
-        (document.getElementById("monthly-bar-chart").getContext('2d').canvas.getAttribute("data-has-data") === "true" ? 
+    const monthValue = selectedView === 'monthly' && selectedYear !== 'All' ? 
+        (document.getElementById("monthly-bar-chart").getAttribute("data-has-data") === "true" ? 
             document.querySelector('#monthly-bar-chart').chart?.data?.labels[0] : null) : null;
     
     // Filter applicable notes
@@ -1038,11 +1031,14 @@ function updateProductComparison(yearlyData, platformData, hasEbooks, productLab
     
     // Update product insights
     productInsightsList.innerHTML = "";
-    productInsights[selectedProduct].forEach(insight => {
-        const li = document.createElement("li");
-        li.textContent = insight;
-        productInsightsList.appendChild(li);
-    });
+    
+    if (productInsights[selectedProduct]) {
+        productInsights[selectedProduct].forEach(insight => {
+            const li = document.createElement("li");
+            li.textContent = insight;
+            productInsightsList.appendChild(li);
+        });
+    }
 }
 
 // Helper function to calculate yearly totals
