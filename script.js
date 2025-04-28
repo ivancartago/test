@@ -1,4 +1,62 @@
-// Helper function to prepare data for year comparison view
+// Function to update year comparison chart
+function updateYearComparisonChart(salesData, hasEbooks, productLabel) {
+    const canvas = document.getElementById("year-comparison-chart");
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    
+    // Get data for the chart
+    const chartData = prepareYearComparisonData(salesData, selectedPlatform, hasEbooks);
+    
+    // Destroy existing chart
+    if (yearComparisonChart) yearComparisonChart.destroy();
+    
+    // Create new chart
+    yearComparisonChart = new Chart(ctx, {
+        type: 'line',
+        data: chartData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Total Sales'
+                    }
+                },
+                x: {
+                    ticks: {
+                        autoSkip: false,
+                        maxRotation: 45,
+                        minRotation: 45
+                    },
+                    title: {
+                        display: true,
+                        text: 'Month'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        usePointStyle: true,
+                        boxWidth: 6
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        title: function(context) {
+                            return `${context[0].label} ${context[0].dataset.label}`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}// Helper function to prepare data for year comparison view
 function prepareYearComparisonData(salesData, platform, hasEbooks) {
     // Get all years for this product
     const years = Object.keys(salesData.platforms)
@@ -100,6 +158,9 @@ function initializeDashboard() {
     // Populate product select dropdown
     populateProductSelect();
     
+    // Create the year comparison view if it doesn't exist
+    createYearComparisonView();
+    
     // Set up event listeners
     document.getElementById("product-select").addEventListener("change", handleProductChange);
     document.getElementById("view-select").addEventListener("change", handleViewChange);
@@ -111,6 +172,43 @@ function initializeDashboard() {
     
     // Initialize the dashboard with default values
     updateDashboard();
+}
+
+// Create year comparison view
+function createYearComparisonView() {
+    const chartColumn = document.querySelector(".chart-column");
+    if (!chartColumn) return;
+    
+    let yearComparisonView = document.getElementById("year-comparison-view");
+    if (!yearComparisonView) {
+        yearComparisonView = document.createElement("div");
+        yearComparisonView.id = "year-comparison-view";
+        yearComparisonView.className = "chart-container hidden";
+        
+        // Add a title
+        const title = document.createElement("h3");
+        title.className = "chart-title";
+        title.textContent = "Monthly Sales Comparison";
+        yearComparisonView.appendChild(title);
+        
+        // Add chart wrapper
+        const chartWrapper = document.createElement("div");
+        chartWrapper.className = "chart-wrapper";
+        
+        // Add canvas for the chart
+        const canvas = document.createElement("canvas");
+        canvas.id = "year-comparison-chart";
+        chartWrapper.appendChild(canvas);
+        yearComparisonView.appendChild(chartWrapper);
+        
+        // Insert the view after the monthly view
+        const monthlyView = document.getElementById("monthly-view");
+        if (monthlyView) {
+            monthlyView.parentNode.insertBefore(yearComparisonView, monthlyView.nextSibling);
+        } else {
+            chartColumn.appendChild(yearComparisonView);
+        }
+    }
 }
 
 // Populate product select dropdown
@@ -136,6 +234,9 @@ function handleProductChange(e) {
     
     // Update select elements to reflect default values
     document.getElementById("view-select").value = selectedView;
+    
+    // Update view options
+    updateViewOptions();
     
     // Update the dashboard
     updateDashboard();
@@ -247,10 +348,18 @@ function updateDashboard() {
         summaryData.push(forecast2025);
     }
     
-    // Update charts
-    updateYearlyCharts(yearlyData, hasEbooks, productLabel);
-    updateMonthlyCharts(monthlyData, hasEbooks, productLabel);
-    updatePlatformCharts(platformData, hasEbooks, productLabel);
+    // Update charts based on selected view
+    if (selectedView === "yearly") {
+        updateYearlyCharts(yearlyData, hasEbooks, productLabel);
+    } else if (selectedView === "monthly") {
+        updateMonthlyCharts(monthlyData, hasEbooks, productLabel);
+    } else if (selectedView === "platform") {
+        updatePlatformCharts(platformData, hasEbooks, productLabel);
+    } else if (selectedView === "yearComparison") {
+        updateYearComparisonChart(currentProductData, hasEbooks, productLabel);
+    }
+    
+    // Always update pie chart
     updatePieChart(pieChartData);
     
     // Update table
@@ -338,33 +447,7 @@ function updateViewVisibility() {
     const yearlyView = document.getElementById("yearly-view");
     const monthlyView = document.getElementById("monthly-view");
     const platformView = document.getElementById("platform-view");
-    
-    // Create year comparison view if it doesn't exist
-    let yearComparisonView = document.getElementById("year-comparison-view");
-    if (!yearComparisonView && selectedView === "yearComparison") {
-        yearComparisonView = document.createElement("div");
-        yearComparisonView.id = "year-comparison-view";
-        yearComparisonView.className = "chart-container";
-        
-        // Add a title
-        const title = document.createElement("h3");
-        title.className = "chart-title";
-        title.textContent = "Monthly Sales Comparison";
-        yearComparisonView.appendChild(title);
-        
-        // Add chart wrapper
-        const chartWrapper = document.createElement("div");
-        chartWrapper.className = "chart-wrapper";
-        
-        // Add canvas for the chart
-        const canvas = document.createElement("canvas");
-        canvas.id = "year-comparison-chart";
-        chartWrapper.appendChild(canvas);
-        yearComparisonView.appendChild(chartWrapper);
-        
-        // Insert the view after the monthly view
-        monthlyView.parentNode.insertBefore(yearComparisonView, monthlyView.nextSibling);
-    }
+    const yearComparisonView = document.getElementById("year-comparison-view");
     
     // Hide all views
     yearlyView.classList.add("hidden");
