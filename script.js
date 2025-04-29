@@ -1456,7 +1456,7 @@ function initializeFullscreenFeature() {
     });
 }
 
-// Function to open fullscreen chart
+// Function to open fullscreen chart with improved tooltip handling
 function openFullscreenChart(sourceCanvas, title) {
     const fullscreenOverlay = document.querySelector('.fullscreen-overlay');
     const fullscreenTitle = fullscreenOverlay.querySelector('.fullscreen-title');
@@ -1474,14 +1474,38 @@ function openFullscreenChart(sourceCanvas, title) {
             existingChart.destroy();
         }
         
-        // Create new chart with same config
+        // Create a deep clone of the chart configuration
+        const chartConfig = structuredClone(sourceChart.config);
+        
+        // Get reference to the original data
+        const originalData = sourceChart.data;
+        const originalOptions = sourceChart.config.options;
+        
+        // Create new chart with the same config but ensuring tooltips work
         new Chart(fullscreenCanvas, {
-            type: sourceChart.config.type,
-            data: JSON.parse(JSON.stringify(sourceChart.data)),
+            type: chartConfig.type,
+            data: chartConfig.data,
             options: {
-                ...JSON.parse(JSON.stringify(sourceChart.config.options)),
+                ...chartConfig.options,
                 maintainAspectRatio: false,
-                responsive: true
+                responsive: true,
+                // Explicitly preserve tooltip callbacks
+                plugins: {
+                    ...chartConfig.options.plugins,
+                    tooltip: {
+                        ...chartConfig.options.plugins?.tooltip,
+                        callbacks: originalOptions.plugins?.tooltip?.callbacks || {}
+                    }
+                },
+                scales: {
+                    ...chartConfig.options.scales,
+                    // Preserve any custom scale configurations
+                    x: {
+                        ...chartConfig.options.scales?.x,
+                        grid: chartConfig.options.scales?.x?.grid,
+                        ticks: chartConfig.options.scales?.x?.ticks
+                    }
+                }
             }
         });
     }
