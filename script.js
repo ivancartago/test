@@ -1392,3 +1392,113 @@ function preparePieChartData(salesData, selectedYear, hasEbooks) {
         value: item.Total
     }));
 }
+// Add fullscreen functionality to the dashboard
+function initializeFullscreenFeature() {
+    // Create fullscreen overlay
+    const fullscreenOverlay = document.createElement('div');
+    fullscreenOverlay.className = 'fullscreen-overlay';
+    fullscreenOverlay.innerHTML = `
+        <div class="fullscreen-title">Chart Fullscreen View</div>
+        <div class="fullscreen-chart-container">
+            <canvas id="fullscreen-chart"></canvas>
+            <div class="fullscreen-close" title="Close fullscreen">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                </svg>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(fullscreenOverlay);
+
+    // Add fullscreen buttons to all chart wrappers
+    document.querySelectorAll('.chart-wrapper').forEach((wrapper, index) => {
+        const button = document.createElement('div');
+        button.className = 'fullscreen-button';
+        button.title = 'View fullscreen';
+        button.setAttribute('data-chart-index', index);
+        button.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+            </svg>
+        `;
+        wrapper.appendChild(button);
+    });
+
+    // Set up event listeners
+    document.addEventListener('click', function(e) {
+        // Check if fullscreen button is clicked
+        if (e.target.closest('.fullscreen-button')) {
+            const button = e.target.closest('.fullscreen-button');
+            const wrapper = button.closest('.chart-wrapper');
+            const chartCanvas = wrapper.querySelector('canvas');
+            const chartTitle = wrapper.closest('.chart-container').querySelector('.chart-title').textContent;
+            
+            // Show fullscreen view with the selected chart
+            openFullscreenChart(chartCanvas, chartTitle);
+        }
+        
+        // Check if close button is clicked
+        if (e.target.closest('.fullscreen-close')) {
+            closeFullscreenChart();
+        }
+    });
+
+    // Close fullscreen when ESC key is pressed
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && fullscreenOverlay.classList.contains('active')) {
+            closeFullscreenChart();
+        }
+    });
+}
+
+// Function to open fullscreen chart
+function openFullscreenChart(sourceCanvas, title) {
+    const fullscreenOverlay = document.querySelector('.fullscreen-overlay');
+    const fullscreenTitle = fullscreenOverlay.querySelector('.fullscreen-title');
+    const fullscreenCanvas = document.getElementById('fullscreen-chart');
+    
+    // Update title
+    fullscreenTitle.textContent = title;
+    
+    // Clone the chart to fullscreen view
+    const sourceChart = Chart.getChart(sourceCanvas);
+    if (sourceChart) {
+        // Destroy any existing fullscreen chart
+        const existingChart = Chart.getChart(fullscreenCanvas);
+        if (existingChart) {
+            existingChart.destroy();
+        }
+        
+        // Create new chart with same config
+        new Chart(fullscreenCanvas, {
+            type: sourceChart.config.type,
+            data: JSON.parse(JSON.stringify(sourceChart.data)),
+            options: {
+                ...JSON.parse(JSON.stringify(sourceChart.config.options)),
+                maintainAspectRatio: false,
+                responsive: true
+            }
+        });
+    }
+    
+    // Show fullscreen overlay
+    fullscreenOverlay.classList.add('active');
+    
+    // Disable scrolling on the body
+    document.body.style.overflow = 'hidden';
+}
+
+// Function to close fullscreen chart
+function closeFullscreenChart() {
+    const fullscreenOverlay = document.querySelector('.fullscreen-overlay');
+    fullscreenOverlay.classList.remove('active');
+    
+    // Re-enable scrolling
+    document.body.style.overflow = '';
+}
+
+// Initialize fullscreen feature after dashboard is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Wait a bit to ensure charts are rendered first
+    setTimeout(initializeFullscreenFeature, 500);
+});
