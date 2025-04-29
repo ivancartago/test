@@ -1451,54 +1451,54 @@ function initializeFullscreenFeature() {
     });
 }
 
-// Function to open fullscreen chart
-function openFullscreenChart(sourceCanvas, title) {
-    const fullscreenOverlay = document.querySelector('.fullscreen-overlay');
-    const fullscreenTitle = fullscreenOverlay.querySelector('.fullscreen-title');
-    const fullscreenCanvas = document.getElementById('fullscreen-chart');
-    
-    // Update title
-    fullscreenTitle.textContent = title;
-    
-    // Clone the chart to fullscreen view
-    const sourceChart = Chart.getChart(sourceCanvas);
-    if (sourceChart) {
-        // Destroy any existing fullscreen chart
-        const existingChart = Chart.getChart(fullscreenCanvas);
-        if (existingChart) {
-            existingChart.destroy();
+    // Function to open fullscreen chart
+    function openFullscreenChart(sourceCanvas, title) {
+        const fullscreenOverlay = document.querySelector('.fullscreen-overlay');
+        const fullscreenTitle = fullscreenOverlay.querySelector('.fullscreen-title');
+        const fullscreenCanvas = document.getElementById('fullscreen-chart');
+        
+        // Update title
+        fullscreenTitle.textContent = title;
+        
+        // Clone the chart to fullscreen view
+        const sourceChart = Chart.getChart(sourceCanvas);
+        if (sourceChart) {
+            // Destroy any existing fullscreen chart
+            const existingChart = Chart.getChart(fullscreenCanvas);
+            if (existingChart) {
+                existingChart.destroy();
+            }
+            
+            // Create new chart with same config
+            new Chart(fullscreenCanvas, {
+                type: sourceChart.config.type,
+                data: JSON.parse(JSON.stringify(sourceChart.data)),
+                options: {
+                    ...JSON.parse(JSON.stringify(sourceChart.config.options)),
+                    maintainAspectRatio: false,
+                    responsive: true
+                }
+            });
         }
         
-        // Create new chart with same config
-        new Chart(fullscreenCanvas, {
-            type: sourceChart.config.type,
-            data: JSON.parse(JSON.stringify(sourceChart.data)),
-            options: {
-                ...JSON.parse(JSON.stringify(sourceChart.config.options)),
-                maintainAspectRatio: false,
-                responsive: true
-            }
-        });
+        // Show fullscreen overlay
+        fullscreenOverlay.classList.add('active');
+        
+        // Disable scrolling on the body
+        document.body.style.overflow = 'hidden';
     }
     
-    // Show fullscreen overlay
-    fullscreenOverlay.classList.add('active');
+    // Function to close fullscreen chart
+    function closeFullscreenChart() {
+        const fullscreenOverlay = document.querySelector('.fullscreen-overlay');
+        fullscreenOverlay.classList.remove('active');
+        
+        // Re-enable scrolling
+        document.body.style.overflow = '';
+    }
     
-    // Disable scrolling on the body
-    document.body.style.overflow = 'hidden';
-}
-
-// Function to close fullscreen chart
-function closeFullscreenChart() {
-    const fullscreenOverlay = document.querySelector('.fullscreen-overlay');
-    fullscreenOverlay.classList.remove('active');
-    
-    // Re-enable scrolling
-    document.body.style.overflow = '';
-}
-
-// Initialize fullscreen feature after dashboard is loaded
-document.addEventListener('DOMContentLoaded', function() {
-    // Wait a bit to ensure charts are rendered first
-    setTimeout(initializeFullscreenFeature, 500);
-});
+    // Initialize fullscreen feature after dashboard is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        // Wait a bit to ensure charts are rendered first
+        setTimeout(initializeFullscreenFeature, 500);
+    });
